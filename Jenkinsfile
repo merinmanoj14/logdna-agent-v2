@@ -260,6 +260,31 @@ pipeline {
                         }
                     }
                 }
+
+                stage('Build Release Image s390x') {
+                    steps {
+                        sh "make init-qemu"
+                        withCredentials([[
+                            $class: 'AmazonWebServicesCredentialsBinding',
+                            credentialsId: 'aws',
+                            accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                            secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                        ]]){
+                            sh """
+                                echo "[default]" > ${WORKSPACE}/.aws_creds_s390x
+                                echo "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" >> ${WORKSPACE}/.aws_creds_s390x
+                                echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" >> ${WORKSPACE}/.aws_creds_s390x
+                                ARCH=s390x make build-image AWS_SHARED_CREDENTIALS_FILE=${WORKSPACE}/.aws_creds_s390x
+                            """
+                        }
+                    }
+                    post {
+                        always {
+                            sh "rm ${WORKSPACE}/.aws_creds_s390x"
+                        }
+                    }
+                }
+
                 stage('Build Release Image aarch64') {
                     steps {
                         withCredentials([[

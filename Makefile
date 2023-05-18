@@ -5,6 +5,7 @@ SHELLFLAGS := -ic
 
 # The target architecture the agent is to be compiled for
 export ARCH ?= x86_64
+LINUX_ARCH:=amd64 s390x
 # The image repo and tag can be modified e.g.
 # `make build RUST_IMAGE=docker.io/rust:latest
 RUST_IMAGE_REPO ?= docker.io/logdna/build-images
@@ -381,17 +382,16 @@ DEB_ARCH_NAME_aarch64=arm64
 
 .PHONY:build-image
 build-image: ## Build a docker image as specified in the Dockerfile
-	$(DOCKER) build . -t $(REPO):$(IMAGE_TAG) \
+	for arch in $(LINUX_ARCH); do \
+	docker buildx build --platform=linux/$${arch} \
 		$(PULL_OPTS) \
 		--progress=plain \
-		--platform=linux/${DEB_ARCH_NAME_${ARCH}} \
-		--secret id=aws,src=$(AWS_SHARED_CREDENTIALS_FILE) \
 		--rm \
 		--build-arg BUILD_ENVS="$(BUILD_ENVS)" \
 		--build-arg BUILD_IMAGE=$(RUST_IMAGE) \
 		--build-arg TARGET=$(TARGET) \
 		--build-arg TARGET_DIR=$(TARGET_DIR) \
-		--build-arg TARGET_ARCH=$(ARCH) \
+		--build-arg TARGET_ARCH=$${arch} \
 		--build-arg BUILD_TIMESTAMP=$(BUILD_TIMESTAMP) \
 		--build-arg BUILD_VERSION=$(BUILD_VERSION) \
 		--build-arg FEATURES='$(FEATURES_ARG)' \
@@ -400,7 +400,11 @@ build-image: ## Build a docker image as specified in the Dockerfile
 		--build-arg VCS_URL=$(VCS_URL) \
 		--build-arg SCCACHE_BUCKET=$(SCCACHE_BUCKET) \
 		--build-arg SCCACHE_REGION=$(SCCACHE_REGION) \
-		--build-arg SCCACHE_ENDPOINT=$(SCCACHE_ENDPOINT)
+		--build-arg SCCACHE_ENDPOINT=$(SCCACHE_ENDPOINT) \
+		-t $(IMAGE):2.2.8-$${arch} . --load ;\
+	done
+	docker images
+
 
 .PHONY:build-image-debian
 build-image-debian: ## Build a docker image as specified in the Dockerfile.debian
